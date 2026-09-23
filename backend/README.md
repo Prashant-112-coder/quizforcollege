@@ -1,5 +1,10 @@
 # QuizForge AI backend
 
-Handles document extraction, normalization, grounded AI question generation, validation, and quiz analysis.
+FastAPI document extraction + AI quiz generation.
+Supported: PDF, DOCX, PPTX, TXT, MD, CSV.
 
-Deploy this service on Render and expose it to the Next.js app through BACKEND_URL.
+Environment:
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4.1-mini
+
+Run: uvicorn backend.main:app --reload --port 8000
