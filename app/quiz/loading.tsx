@@ -1,1 +1,1 @@
-export default function Loading(){return <main className="page"><div className="card skeleton"><h1>Preparing your quiz…</h1><p>Loading questions and explanations.</p></div></main>}
+export default function Loading(){return <main className="page"><div className="card"><h1>Preparing your quiz…</h1><p>Loading questions and explanations.</p></div></main>}
