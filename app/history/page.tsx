@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function History(){return <main className="page"><section className="hero compact"><span className="eyebrow">HISTORY</span><h1>Your quiz history.</h1><p>Completed attempts will appear here once authentication and database storage are connected.</p></section><div className="card empty"><h2>No attempts yet</h2><Link href="/generate" className="button">Take your first quiz</Link></div></main>}
