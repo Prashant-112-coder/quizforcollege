@@ -1,101 +1,77 @@
 import Link from "next/link";
-import { ArrowRight, BrainCircuit, CheckCircle2, FileUp, Sparkles, Target, Timer } from "lucide-react";
+import { ArrowRight, BrainCircuit, FileUp, Sparkles } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="landing">
+    <main className="landing landing-simple">
       <header className="landing-nav glass-nav">
-        <Link href="/" className="brand" aria-label="QuizForge home">
+        <Link href="/" className="brand landing-brand">
           <span className="brand-mark"><Sparkles size={16} /></span>
-          <span>QuizForge</span>
+          QuizForge
         </Link>
 
         <nav className="landing-links" aria-label="Primary navigation">
-          <Link href="/dashboard" className="nav-text">Overview</Link>
+          <Link href="/dashboard" className="nav-text">Dashboard</Link>
           <Link href="/generate" className="nav-text">Generate</Link>
           <Link href="/practice" className="nav-text">Practice</Link>
           <Link href="/history" className="nav-text">History</Link>
         </nav>
 
-        <Link href="/generate" className="button small-button">
-          Start learning <ArrowRight size={15} />
+        <Link href="/generate" className="landing-nav-cta">
+          Get started <ArrowRight size={15} />
         </Link>
       </header>
 
-      <section className="landing-hero">
-        <div className="landing-copy">
-          <div className="eyebrow"><span className="eyebrow-dot" /> AI STUDY WORKSPACE</div>
-          <h1>Turn your notes into <span>better practice.</span></h1>
+      <section className="simple-hero">
+        <div className="simple-hero-copy">
+          <div className="simple-eyebrow"><span /> AI QUIZ MAKER</div>
+          <h1>Study smarter.<br /><em>Practice better.</em></h1>
           <p>
-            Upload your lectures, PDFs or slides and get focused MCQs with explanations.
-            Then practice by topic and see where you need to improve.
+            Turn your notes, PDFs and slides into focused MCQs in seconds.
+            Learn from explanations and practice exactly what you need.
           </p>
 
-          <div className="hero-actions">
-            <Link href="/generate" className="button">
-              Generate a quiz <ArrowRight size={17} />
+          <div className="simple-actions">
+            <Link href="/generate" className="simple-primary">
+              Create a quiz <ArrowRight size={17} />
             </Link>
-            <Link href="/practice" className="button ghost">
+            <Link href="/practice" className="simple-secondary">
               Practice a topic
             </Link>
           </div>
-
-          <div className="trust-line">
-            <span><BrainCircuit size={15} /> AI-powered</span>
-            <span><Target size={15} /> Exam-ready</span>
-            <span><FileUp size={15} /> 6 formats</span>
-          </div>
         </div>
 
-        <div className="quiz-preview-wrap" aria-label="Quiz preview">
-          <div className="preview-glow" />
-          <div className="quiz-preview glass-panel">
-            <div className="preview-top">
+        <div className="simple-visual" aria-label="Quiz workflow preview">
+          <div className="visual-card visual-main">
+            <div className="visual-header">
               <div>
-                <span className="preview-kicker">QUICK PRACTICE</span>
+                <small>YOUR NEXT QUIZ</small>
                 <strong>Operating Systems</strong>
               </div>
-              <span className="preview-timer"><Timer size={13} /> 08:42</span>
+              <span>03 / 10</span>
             </div>
+            <div className="visual-line"><i /></div>
+            <h2>Which scheduling algorithm can cause starvation?</h2>
+            <div className="visual-answer active"><b>A</b><span>Priority Scheduling</span><strong>✓</strong></div>
+            <div className="visual-answer"><b>B</b><span>Round Robin</span></div>
+            <div className="visual-answer"><b>C</b><span>FCFS</span></div>
+          </div>
 
-            <div className="preview-progress"><span /></div>
-
-            <div className="preview-question">
-              <span>QUESTION 03 / 10</span>
-              <h3>Which scheduling algorithm can cause starvation?</h3>
-            </div>
-
-            <div className="preview-options">
-              <div><span>A</span> Round Robin</div>
-              <div className="preview-selected"><span>B</span> Priority Scheduling <CheckCircle2 size={16} /></div>
-              <div><span>C</span> FCFS</div>
-              <div><span>D</span> FIFO</div>
-            </div>
-
-            <div className="preview-footer">
-              <span>AI-generated from your study material</span>
-              <span className="preview-badge">Study mode</span>
-            </div>
+          <div className="visual-mini visual-upload">
+            <FileUp size={17} />
+            <div><b>Upload notes</b><span>PDF · PPTX · DOCX</span></div>
+          </div>
+          <div className="visual-mini visual-ai">
+            <BrainCircuit size={17} />
+            <div><b>AI generated</b><span>Grounded in your material</span></div>
           </div>
         </div>
       </section>
 
-      <section className="feature-strip">
-        <div>
-          <span className="feature-number">01</span>
-          <h3>Bring your material</h3>
-          <p>Upload notes, PDFs, slides and common study formats.</p>
-        </div>
-        <div>
-          <span className="feature-number">02</span>
-          <h3>Build your practice</h3>
-          <p>Choose count, difficulty and exam or study mode.</p>
-        </div>
-        <div>
-          <span className="feature-number">03</span>
-          <h3>Learn from every attempt</h3>
-          <p>Review explanations and keep your progress visible.</p>
-        </div>
+      <section className="simple-steps">
+        <div><span>01</span><div><b>Upload</b><p>Bring your study material.</p></div></div>
+        <div><span>02</span><div><b>Generate</b><p>Choose your quiz settings.</p></div></div>
+        <div><span>03</span><div><b>Practice</b><p>Answer, review and improve.</p></div></div>
       </section>
     </main>
   );
