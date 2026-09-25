@@ -40,11 +40,69 @@ async def extract_file(name,data):
 def context(pages): return "\n\n".join(f"[{x['location']}]\n{x['text']}" for x in pages if x["text"])[:90000]
 async def ai_generate(material,req):
     key=os.getenv("OPENAI_API_KEY")
-    if not key:return None
+    if not key:
+        raise HTTPException(503,"AI service is not configured. Add OPENAI_API_KEY to the backend environment.")
+
     prompt=f"""Generate {req['count']} high-quality multiple-choice questions from the supplied study material. Difficulty={req['difficulty']}; exam={req['exam_type']}; mode={req['mode']}. Return ONLY JSON with title and questions. Each question must have question, options (4 strings), answer (0-3), explanation, source. Answers and explanations must be grounded in the material; never invent facts. MATERIAL:\n{material}"""
-    async with httpx.AsyncClient(timeout=90) as c:
-        r=await c.post("https://api.openai.com/v1/chat/completions",headers={"Authorization":f"Bearer {key}"},json={"model":os.getenv("OPENAI_MODEL","gpt-4.1-mini"),"messages":[{"role":"system","content":"You generate grounded educational MCQs."},{"role":"user","content":prompt}],"temperature":0.2,"response_format":{"type":"json_object"}})
-        r.raise_for_status(); return json.loads(r.json()["choices"][0]["message"]["content"])
+    payload={
+        "model":os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
+        "messages":[
+            {"role":"system","content":"You generate grounded educational MCQs."},
+            {"role":"user","content":prompt}
+        ],
+        "temperature":0.2,
+        "response_format":{"type":"json_object"}
+    }
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as c:
+        for attempt in range(3):
+            try:
+                r=await c.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization":f"Bearer {key}"},
+                    json=payload
+                )
+                if r.status_code == 429:
+                    try:
+                        err=r.json().get("error",{})
+                    except ValueError:
+                        err={}
+                    message=err.get("message","OpenAI rate limit or quota exceeded.")
+                    if attempt < 2 and "quota" not in message.lower() and "billing" not in message.lower():
+                        await __import__("asyncio").sleep(2 ** attempt)
+                        continue
+                    raise HTTPException(429,f"OpenAI request limit reached: {message}")
+                if r.status_code in (401,403):
+                    raise HTTPException(r.status_code,"OpenAI authentication failed. Check OPENAI_API_KEY and project permissions.")
+                if r.status_code >= 500:
+                    if attempt < 2:
+                        await __import__("asyncio").sleep(2 ** attempt)
+                        continue
+                    raise HTTPException(502,"OpenAI is temporarily unavailable. Please try again shortly.")
+                r.raise_for_status()
+
+                body=r.json()
+                content=body.get("choices",[{}])[0].get("message",{}).get("content")
+                if not content:
+                    raise HTTPException(502,"OpenAI returned an empty quiz response.")
+                try:
+                    result=json.loads(content)
+                except json.JSONDecodeError:
+                    raise HTTPException(502,"OpenAI returned invalid quiz JSON.")
+                if not isinstance(result,dict) or not isinstance(result.get("questions"),list):
+                    raise HTTPException(502,"OpenAI returned an invalid quiz structure.")
+                return result
+            except httpx.TimeoutException:
+                if attempt < 2:
+                    await __import__("asyncio").sleep(2 ** attempt)
+                    continue
+                raise HTTPException(504,"OpenAI request timed out. Please try again.")
+            except httpx.RequestError as exc:
+                if attempt < 2:
+                    await __import__("asyncio").sleep(2 ** attempt)
+                    continue
+                raise HTTPException(502,f"Unable to reach OpenAI: {exc.__class__.__name__}")
+
 def fallback(material,count,title):
     sentences=[s.strip() for s in re.split(r"(?<=[.!?])\s+",material) if len(s.strip())>50]
     qs=[]
