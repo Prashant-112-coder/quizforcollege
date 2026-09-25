@@ -1,4 +1,4 @@
-import io, os, json, re
+import io, os, json, re, asyncio
 import fitz
 import httpx
 from docx import Document
@@ -39,69 +39,87 @@ async def extract_file(name,data):
     raise HTTPException(400,"Supported formats: PDF, DOCX, PPTX, TXT, MD, CSV")
 def context(pages): return "\n\n".join(f"[{x['location']}]\n{x['text']}" for x in pages if x["text"])[:90000]
 async def ai_generate(material,req):
-    key=os.getenv("OPENAI_API_KEY")
+    key=os.getenv("GEMINI_API_KEY")
     if not key:
-        raise HTTPException(503,"AI service is not configured. Add OPENAI_API_KEY to the backend environment.")
+        raise HTTPException(503,"AI service is not configured. Add GEMINI_API_KEY to the backend environment.")
 
-    prompt=f"""Generate {req['count']} high-quality multiple-choice questions from the supplied study material. Difficulty={req['difficulty']}; exam={req['exam_type']}; mode={req['mode']}. Return ONLY JSON with title and questions. Each question must have question, options (4 strings), answer (0-3), explanation, source. Answers and explanations must be grounded in the material; never invent facts. MATERIAL:\n{material}"""
+    model=os.getenv("GEMINI_MODEL","gemini-3.5-flash-lite")
+    prompt=f"""Generate {req['count']} high-quality multiple-choice questions from the supplied study material. Difficulty={req['difficulty']}; exam={req['exam_type']}; mode={req['mode']}.
+Return ONLY valid JSON with this exact top-level shape:
+{{"title":"string","questions":[{{"question":"string","options":["string","string","string","string"],"answer":0,"explanation":"string","source":"string"}}]}}
+The answer must be an integer from 0 to 3. Answers and explanations must be grounded in the supplied material. Never invent facts. MATERIAL:
+{material}"""
+
+    url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload={
-        "model":os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
-        "messages":[
-            {"role":"system","content":"You generate grounded educational MCQs."},
-            {"role":"user","content":prompt}
-        ],
-        "temperature":0.2,
-        "response_format":{"type":"json_object"}
+        "contents":[{"parts":[{"text":prompt}]}],
+        "generationConfig":{
+            "temperature":0.2,
+            "responseMimeType":"application/json"
+        }
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0)) as c:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0,connect=15.0)) as c:
         for attempt in range(3):
             try:
-                r=await c.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization":f"Bearer {key}"},
-                    json=payload
-                )
+                r=await c.post(url,headers={"x-goog-api-key":key},json=payload)
+
                 if r.status_code == 429:
                     try:
                         err=r.json().get("error",{})
                     except ValueError:
                         err={}
-                    message=err.get("message","OpenAI rate limit or quota exceeded.")
-                    if attempt < 2 and "quota" not in message.lower() and "billing" not in message.lower():
-                        await __import__("asyncio").sleep(2 ** attempt)
+                    message=err.get("message","Gemini rate limit or quota exceeded.")
+                    if attempt < 2:
+                        await asyncio.sleep(2 ** attempt)
                         continue
-                    raise HTTPException(429,f"OpenAI request limit reached: {message}")
-                if r.status_code in (401,403):
-                    raise HTTPException(r.status_code,"OpenAI authentication failed. Check OPENAI_API_KEY and project permissions.")
+                    raise HTTPException(429,f"Gemini request limit reached: {message}")
+
+                if r.status_code in (400,401,403):
+                    try:
+                        message=r.json().get("error",{}).get("message","Gemini API request was rejected.")
+                    except ValueError:
+                        message="Gemini API request was rejected."
+                    raise HTTPException(r.status_code,message)
+
                 if r.status_code >= 500:
                     if attempt < 2:
-                        await __import__("asyncio").sleep(2 ** attempt)
+                        await asyncio.sleep(2 ** attempt)
                         continue
-                    raise HTTPException(502,"OpenAI is temporarily unavailable. Please try again shortly.")
-                r.raise_for_status()
+                    raise HTTPException(502,"Gemini is temporarily unavailable. Please try again shortly.")
 
+                r.raise_for_status()
                 body=r.json()
-                content=body.get("choices",[{}])[0].get("message",{}).get("content")
+                candidates=body.get("candidates",[])
+                if not candidates:
+                    raise HTTPException(502,"Gemini returned no quiz candidates.")
+
+                parts=candidates[0].get("content",{}).get("parts",[])
+                content="".join(p.get("text","") for p in parts if isinstance(p,dict))
                 if not content:
-                    raise HTTPException(502,"OpenAI returned an empty quiz response.")
+                    raise HTTPException(502,"Gemini returned an empty quiz response.")
+
                 try:
                     result=json.loads(content)
                 except json.JSONDecodeError:
-                    raise HTTPException(502,"OpenAI returned invalid quiz JSON.")
+                    raise HTTPException(502,"Gemini returned invalid quiz JSON.")
+
                 if not isinstance(result,dict) or not isinstance(result.get("questions"),list):
-                    raise HTTPException(502,"OpenAI returned an invalid quiz structure.")
+                    raise HTTPException(502,"Gemini returned an invalid quiz structure.")
+
                 return result
+
             except httpx.TimeoutException:
                 if attempt < 2:
-                    await __import__("asyncio").sleep(2 ** attempt)
+                    await asyncio.sleep(2 ** attempt)
                     continue
-                raise HTTPException(504,"OpenAI request timed out. Please try again.")
+                raise HTTPException(504,"Gemini request timed out. Please try again.")
+
             except httpx.RequestError as exc:
                 if attempt < 2:
-                    await __import__("asyncio").sleep(2 ** attempt)
+                    await asyncio.sleep(2 ** attempt)
                     continue
-                raise HTTPException(502,f"Unable to reach OpenAI: {exc.__class__.__name__}")
+                raise HTTPException(502,f"Unable to reach Gemini: {exc.__class__.__name__}")
 
 def fallback(material,count,title):
     sentences=[s.strip() for s in re.split(r"(?<=[.!?])\s+",material) if len(s.strip())>50]
@@ -113,7 +131,7 @@ async def build(material,title,req):
     result=await ai_generate(material,req)
     return result or fallback(material,req["count"],title)
 @app.get("/health")
-def health(): return {"status":"ok","service":"quizforge-backend"}
+def health(): return {"status":"ok","service":"quizforge-backend","ai_provider":"gemini","ai_configured":bool(os.getenv("GEMINI_API_KEY"))}
 @app.post("/api/extract")
 async def extract(file:UploadFile=File(...)):
     pages=await extract_file(file.filename,await file.read()); return {"filename":file.filename,"pages":pages,"text":context(pages)}
