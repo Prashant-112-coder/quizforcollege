@@ -24,8 +24,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
   const isProtected = protectedPaths.some((path) => pathname === path || pathname.startsWith(path + "/"));
   const isAuthPage = pathname.startsWith("/auth");
