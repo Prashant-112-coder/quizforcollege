@@ -27,7 +27,7 @@ export default function AppShell({children}:{children:ReactNode}){
  useEffect(()=>{
    const supabase=createClient();
    supabase.auth.getUser().then(({data})=>setUser(data.user));
-   fetch("/api/profile").then(r=>r.ok?r.json():null).then(x=>x&&setProfile(x.profile||null)).catch(()=>{});
+   fetch("/api/profile").then(r=>r.ok?r.json():null).then(x=>{if(x){setProfile(x.profile||null);document.documentElement.dataset.theme=x.profile?.theme||"system";}}).catch(()=>{});
  },[]);
  const active=(href:string)=>pathname===href||pathname.startsWith(href+"/");
  async function logout(){await createClient().auth.signOut({scope:"local"});router.replace("/");router.refresh();}
