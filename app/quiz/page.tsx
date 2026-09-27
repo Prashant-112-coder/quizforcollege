@@ -1,9 +1,32 @@
 "use client";
-import {useEffect,useState} from "react"; import Link from "next/link"; import {ArrowLeft, CheckCircle2, Clock3, Sparkles} from "lucide-react"; import AppShell from "@/components/AppShell";
+
+import {useEffect,useState} from "react";
+import Link from "next/link";
+import {useRouter} from "next/navigation";
+import {ArrowLeft,CheckCircle2,Clock3,Loader2} from "lucide-react";
+import AppShell from "@/components/AppShell";
+
 type Q={question:string;options:string[];answer:number;explanation:string;source?:string};
-export default function QuizPage(){const[d,setD]=useState<any>();const[s,setS]=useState<number[]>([]);const[done,setDone]=useState(false);const[t,setT]=useState(0);
-useEffect(()=>{const x=sessionStorage.getItem("quizforge:lastQuiz");if(x){const q=JSON.parse(x);setD(q);setS(Array(q.questions.length).fill(-1))}const i=setInterval(()=>setT(v=>v+1),1000);return()=>clearInterval(i)},[]);
-if(!d)return <AppShell><div className="page"><div className="card empty"><h2>No quiz loaded</h2><p>Create a quiz first to begin.</p><Link className="button" href="/generate">Create a quiz</Link></div></div></AppShell>;
-const qs:Q[]=d.questions||[];const score=qs.reduce((n,q,i)=>n+(s[i]===q.answer?1:0),0);
-function submit(){setDone(true);try{const old=JSON.parse(localStorage.getItem("quizforge:attempts")||"[]");old.unshift({score,total:qs.length,title:d.title||"Quiz",date:new Date().toISOString()});localStorage.setItem("quizforge:attempts",JSON.stringify(old.slice(0,30)))}catch{}}
-return <AppShell><div className="page quiz-shell"><div className="quiz-top"><div><Link href="/dashboard" className="text-link"><ArrowLeft size={15}/> Exit quiz</Link><h1>{d.title}</h1></div><div className="timer"><Clock3 size={15}/> {Math.floor(t/60)}:{String(t%60).padStart(2,"0")}</div></div>{done&&<div className="result-banner"><b>{score}/{qs.length}</b> · {Math.round(score/Math.max(1,qs.length)*100)}% correct</div>}{qs.map((q,i)=><section className="card question" key={i}><div className="q-meta">QUESTION {i+1} / {qs.length}</div><h2>{q.question}</h2><div className="options">{q.options.map((o,j)=><button disabled={done} key={j} onClick={()=>setS(a=>a.map((v,k)=>k===i?j:v))} className={done?(j===q.answer?"correct":s[i]===j?"wrong":""):(s[i]===j?"selected":"")}>{String.fromCharCode(65+j)}. {o}</button>)}</div>{done&&<div className="explanation"><b><CheckCircle2 size={15}/> Explanation</b><p>{q.explanation}</p>{q.source&&<small>Source: {q.source}</small>}</div>}</section>)}<div className="sticky-actions">{!done?<button className="button" onClick={submit}><CheckCircle2 size={16}/> Submit Quiz</button>:<Link className="button" href="/generate"><Sparkles size={16}/> Generate Another</Link>}</div></div></AppShell>}
+
+export default function QuizPage(){
+ const router=useRouter();const[d,setD]=useState<any>();const[s,setS]=useState<number[]>([]);const[t,setT]=useState(0);const[startedAt,setStartedAt]=useState("");const[saving,setSaving]=useState(false);const[error,setError]=useState("");
+ useEffect(()=>{const x=sessionStorage.getItem("quizforge:lastQuiz");if(x){const q=JSON.parse(x);setD(q);setS(Array(q.questions.length).fill(-1));setStartedAt(new Date().toISOString())}const i=setInterval(()=>setT(v=>v+1),1000);return()=>clearInterval(i)},[]);
+ if(!d)return <AppShell><div className="page"><div className="card empty"><h2>No quiz loaded</h2><p>Create a quiz first to begin.</p><Link className="button" href="/generate">Create a quiz</Link></div></div></AppShell>;
+ const qs:Q[]=d.questions||[];const score=qs.reduce((n,q,i)=>n+(s[i]===q.answer?1:0),0);
+ async function submit(){
+  if(saving)return;setSaving(true);setError("");
+  const settings=d.quizSettings||{subject:"General",difficulty:"mixed",mode:"exam"};
+  const res=await fetch("/api/attempts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+   title:d.title||"Quiz",subject:settings.subject||"General",difficulty:settings.difficulty||"mixed",mode:settings.mode||"exam",
+   source_filename:settings.source_filename||null,questions:qs,answers:s,started_at:startedAt,time_taken_seconds:t
+  })});
+  const data=await res.json();
+  if(!res.ok){setError(data.error||"Could not save your attempt.");setSaving(false);return}
+  sessionStorage.setItem("quizforge:lastAttempt",JSON.stringify(data));router.replace("/result?id="+data.attemptId);router.refresh();
+ }
+ return <AppShell><div className="page quiz-shell"><div className="quiz-top"><div><Link href="/dashboard" className="text-link"><ArrowLeft size={15}/> Exit quiz</Link><h1>{d.title}</h1><p className="quiz-subtitle">{d.quizSettings?.subject||"General"} · {d.quizSettings?.difficulty||"mixed"}</p></div><div className="timer"><Clock3 size={15}/> {Math.floor(t/60)}:{String(t%60).padStart(2,"0")}</div></div>
+ {error&&<div className="error">{error}</div>}
+ {qs.map((q,i)=><section className="card question" key={i}><div className="q-meta">QUESTION {i+1} / {qs.length}</div><h2>{q.question}</h2><div className="options">{q.options.map((o,j)=><button key={j} onClick={()=>setS(a=>a.map((v,k)=>k===i?j:v))} className={s[i]===j?"selected":""}>{String.fromCharCode(65+j)}. {o}</button>)}</div></section>)}
+ <div className="sticky-actions"><button className="button" disabled={saving} onClick={submit}>{saving?<><Loader2 size={16} className="spin"/>Saving result…</>:<><CheckCircle2 size={16}/>Submit Quiz</>}</button></div>
+ </div></AppShell>;
+}
