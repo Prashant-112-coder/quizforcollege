@@ -19,10 +19,12 @@ export async function POST(request:Request){
   const answers=Array.isArray(body.answers)?body.answers:[];
   if(!questions.length)return NextResponse.json({error:"No quiz questions supplied."},{status:400});
 
+  const {data:subjectRow}=await supabase.from("subjects").select("id").eq("name",String(body.subject||"General")).maybeSingle();
   const quizPayload={
     user_id:user.id,
     title:String(body.title||"Untitled Quiz").slice(0,180),
     subject:String(body.subject||"General").slice(0,100),
+    subject_id:subjectRow?.id||null,
     difficulty:String(body.difficulty||"mixed").slice(0,30),
     mode:String(body.mode||"exam").slice(0,20),
     question_count:questions.length,
