@@ -1,13 +1,19 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ArrowUpRight, History as HistoryIcon, RotateCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowUpRight, History as HistoryIcon, Loader2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
-type Attempt={score:number;total:number;title:string;date:string};
+
 export default function History(){
- const [items,setItems]=useState<Attempt[]>([]);
- useEffect(()=>{try{setItems(JSON.parse(localStorage.getItem("quizforge:attempts")||"[]"))}catch{}},[]);
- function clear(){localStorage.removeItem("quizforge:attempts");setItems([])}
- return <AppShell><div className="workspace page"><div className="page-header"><div><div className="eyebrow">ACTIVITY</div><h1>Quiz history</h1><p>Review your recent practice and keep an eye on your progress.</p></div>{items.length>0&&<button className="button danger-button" onClick={clear}><Trash2 size={16}/> Clear history</button>}</div>
- <div className="card history-card">{items.length===0?<div className="empty"><div className="empty-icon"><HistoryIcon/></div><h2>Your history is empty</h2><p>Complete a quiz and your score will be saved locally on this device.</p><Link href="/generate" className="button">Create a quiz <ArrowUpRight size={16}/></Link></div>:items.map((a,i)=><div className="history-row" key={i}><div className="history-main"><span className="history-index">{items.length-i}</span><div><b>{a.title}</b><span>{new Date(a.date).toLocaleString()}</span></div></div><div className="history-score"><strong>{Math.round(a.score/a.total*100)}%</strong><span>{a.score}/{a.total} correct</span></div><Link className="icon-button" href="/generate" title="Generate another quiz"><RotateCcw size={17}/></Link></div>)}</div></div></AppShell>
+ const [items,setItems]=useState<any[]>([]);const[loading,setLoading]=useState(true);const[query,setQuery]=useState("");const[subject,setSubject]=useState("all");
+ useEffect(()=>{fetch("/api/attempts").then(r=>r.json()).then(x=>setItems(x.attempts||[])).finally(()=>setLoading(false))},[]);
+ const subjects=useMemo(()=>[...new Set(items.map(x=>x.quizzes?.subject).filter(Boolean))],[items]);
+ const filtered=items.filter(x=>{
+   const q=query.trim().toLowerCase();const title=(x.quizzes?.title||"").toLowerCase();
+   return (!q||title.includes(q))&&(subject==="all"||x.quizzes?.subject===subject);
+ });
+ return <AppShell><div className="workspace page"><div className="page-header"><div><div className="eyebrow">ACTIVITY</div><h1>Quiz history.</h1><p>Every completed attempt is tied to your account.</p></div></div>
+ <div className="history-tools card"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search quizzes…"/><select value={subject} onChange={e=>setSubject(e.target.value)}><option value="all">All subjects</option>{subjects.map(s=><option key={String(s)}>{String(s)}</option>)}</select></div>
+ <div className="card history-card">{loading?<div className="loading-card"><Loader2 className="spin"/>Loading history…</div>:filtered.length?filtered.map((a,i)=><div className="history-row" key={a.id}><div className="history-main"><span className="history-index">{i+1}</span><div><b>{a.quizzes?.title||"Quiz"}</b><span>{a.quizzes?.subject||"General"} · {new Date(a.created_at).toLocaleString()}</span></div></div><div className="history-score"><strong>{a.percentage}%</strong><span>{a.score}/{a.quizzes?.question_count||0} · {Math.round((a.time_taken_seconds||0)/60)}m</span></div><Link className="icon-button" href={"/result?id="+a.id} title="View result"><ArrowUpRight size={16}/></Link></div>):<div className="empty"><div className="empty-icon"><HistoryIcon/></div><h2>Your history is empty</h2><p>Complete a quiz and your results will stay with your account.</p><Link href="/generate" className="button">Create a quiz</Link></div>}</div></div></AppShell>;
 }
