@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const initial={fullName:"",email:"",password:"",confirm:"",college:"",course:"",semester:"",department:"",studentId:""};
 
@@ -14,20 +13,22 @@ export default function SignupPage(){
   async function submit(event:FormEvent){
     event.preventDefault();setError("");setMessage("");
     if(Object.values(form).some(v=>!v.trim())){setError("Please complete every field.");return}
+    if(!/^\S+@\S+\.\S+$/.test(form.email.trim())){setError("Enter a valid email address.");return}
     if(form.password.length<8){setError("Password must be at least 8 characters.");return}
     if(form.password!==form.confirm){setError("Passwords do not match.");return}
     setLoading(true);
-    const {data,error}=await createClient().auth.signUp({
-      email:form.email.trim().toLowerCase(),password:form.password,
-      options:{emailRedirectTo:window.location.origin+"/auth/confirm",data:{
-        full_name:form.fullName.trim(),college:form.college.trim(),course:form.course.trim(),
-        semester:form.semester.trim(),department:form.department.trim(),student_id:form.studentId.trim()
-      }}
-    });
-    if(error){setError(error.message);setLoading(false);return}
-    if(data.session){router.replace("/dashboard");router.refresh();return}
-    setMessage("Account created. Check your email to confirm the account, then sign in.");
-    setLoading(false);
+    try{
+      const response=await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        fullName:form.fullName.trim(),email:form.email.trim().toLowerCase(),password:form.password,
+        college:form.college.trim(),course:form.course.trim(),semester:form.semester.trim(),
+        department:form.department.trim(),studentId:form.studentId.trim()
+      })});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok){setError(result.error||"Unable to create your account.");return}
+      if(result.session){router.replace("/dashboard");router.refresh();return}
+      setMessage(result.message||"Account created. Check your email to confirm the account, then sign in.");
+    }catch{setError("Could not connect to the account service. Please try again.")}
+    finally{setLoading(false)}
   }
   return <main className="auth-page"><section className="auth-card auth-card-wide">
     <Link href="/" className="auth-brand"><span><Sparkles size={16}/></span>QuizForge</Link>
