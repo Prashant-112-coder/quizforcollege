@@ -21,8 +21,9 @@ function LoginForm() {
     if(!email.trim() || !password){setError("Enter your email and password.");return}
     setLoading(true);
     try {
-      const {error}=await createClient().auth.signInWithPassword({email:email.trim().toLowerCase(),password});
-      if(error){setError(error.message);return}
+      const res=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.trim().toLowerCase(),password})});
+      const result=await res.json().catch(()=>({}));
+      if(!res.ok){setError(result.error||"Login failed.");return}
       router.replace(next); router.refresh();
     } catch {
       setError("Login service could not be reached. You can continue as a guest or try again.");
