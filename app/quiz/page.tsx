@@ -16,6 +16,18 @@ export default function QuizPage(){
  async function submit(){
   if(saving)return;setSaving(true);setError("");
   const settings=d.quizSettings||{subject:"General",difficulty:"mixed",mode:"exam"};
+  const isGuest=document.cookie.split("; ").some(x=>x==="quizforge_guest=1");
+  if(isGuest){
+    const attempt={id:"guest",quiz:{title:d.title||"Quiz",subject:settings.subject||"General",difficulty:settings.difficulty||"mixed",question_count:qs.length},
+      score,percentage:Math.round(score/qs.length*10000)/100,
+      correct_answers:score,wrong_answers:s.filter((x,i)=>x>=0&&x!==qs[i].answer).length,
+      unanswered:s.filter(x=>x<0).length,time_taken_seconds:t,
+      answers:qs.map((q,i)=>({selected_answer:s[i],is_correct:s[i]===q.answer,questions:{question:q.question,options:q.options,correct_answer:q.answer,explanation:q.explanation}}))
+    };
+    sessionStorage.setItem("quizforge:guestAttempt",JSON.stringify(attempt));
+    router.replace("/result?id=guest");return;
+  }
+  try{
   const res=await fetch("/api/attempts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
    title:d.title||"Quiz",subject:settings.subject||"General",difficulty:settings.difficulty||"mixed",mode:settings.mode||"exam",
    source_filename:settings.source_filename||null,questions:qs,answers:s,started_at:startedAt,time_taken_seconds:t
@@ -23,6 +35,7 @@ export default function QuizPage(){
   const data=await res.json();
   if(!res.ok){setError(data.error||"Could not save your attempt.");setSaving(false);return}
   sessionStorage.setItem("quizforge:lastAttempt",JSON.stringify(data));router.replace("/result?id="+data.attemptId);router.refresh();
+  }catch{setError("Could not save your attempt. Please try again.");setSaving(false)}
  }
  return <AppShell><div className="page quiz-shell"><div className="quiz-top"><div><Link href="/dashboard" className="text-link"><ArrowLeft size={15}/> Exit quiz</Link><h1>{d.title}</h1><p className="quiz-subtitle">{d.quizSettings?.subject||"General"} · {d.quizSettings?.difficulty||"mixed"}</p></div><div className="timer"><Clock3 size={15}/> {Math.floor(t/60)}:{String(t%60).padStart(2,"0")}</div></div>
  {error&&<div className="error">{error}</div>}
