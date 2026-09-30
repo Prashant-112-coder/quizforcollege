@@ -9,14 +9,6 @@ export default function Home() {
           <span className="brand-mark"><Sparkles size={16} /></span>
           QuizForge
         </Link>
-
-        <nav className="landing-links" aria-label="Primary navigation">
-          <Link href="/dashboard" className="nav-text">Dashboard</Link>
-          <Link href="/generate" className="nav-text">Generate</Link>
-          <Link href="/practice" className="nav-text">Practice</Link>
-          <Link href="/history" className="nav-text">History</Link>
-        </nav>
-
         <Link href="/generate" className="landing-nav-cta">
           Get started <ArrowRight size={15} />
         </Link>
@@ -30,24 +22,18 @@ export default function Home() {
             Turn your notes, PDFs and slides into focused MCQs in seconds.
             Learn from explanations and practice exactly what you need.
           </p>
-
           <div className="simple-actions">
             <Link href="/generate" className="simple-primary">
-              Create a quiz <ArrowRight size={17} />
+              Get started <ArrowRight size={17} />
             </Link>
-            <Link href="/practice" className="simple-secondary">
-              Practice a topic
-            </Link>
+            <Link href="/practice" className="simple-secondary">Practice a topic</Link>
           </div>
         </div>
 
         <div className="simple-visual" aria-label="Quiz workflow preview">
           <div className="visual-card visual-main">
             <div className="visual-header">
-              <div>
-                <small>YOUR NEXT QUIZ</small>
-                <strong>Operating Systems</strong>
-              </div>
+              <div><small>YOUR NEXT QUIZ</small><strong>Operating Systems</strong></div>
               <span>03 / 10</span>
             </div>
             <div className="visual-line"><i /></div>
@@ -56,14 +42,11 @@ export default function Home() {
             <div className="visual-answer"><b>B</b><span>Round Robin</span></div>
             <div className="visual-answer"><b>C</b><span>FCFS</span></div>
           </div>
-
           <div className="visual-mini visual-upload">
-            <FileUp size={17} />
-            <div><b>Upload notes</b><span>PDF · PPTX · DOCX</span></div>
+            <FileUp size={17} /><div><b>Upload notes</b><span>PDF · PPTX · DOCX</span></div>
           </div>
           <div className="visual-mini visual-ai">
-            <BrainCircuit size={17} />
-            <div><b>AI generated</b><span>Grounded in your material</span></div>
+            <BrainCircuit size={17} /><div><b>AI generated</b><span>Grounded in your material</span></div>
           </div>
         </div>
       </section>
