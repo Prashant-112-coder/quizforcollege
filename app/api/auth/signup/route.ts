@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -14,39 +14,38 @@ export async function POST(request: Request) {
     const studentId = String(body.studentId ?? "").trim();
 
     if (![fullName,email,password,college,course,semester,department,studentId].every(Boolean)) {
-      return NextResponse.json({ error: "Please complete every field." }, { status: 400 });
+      return NextResponse.json({error:"Please complete every field."},{status:400});
     }
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+      return NextResponse.json({error:"Enter a valid email address."},{status:400});
     }
     if (password.length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+      return NextResponse.json({error:"Password must be at least 8 characters."},{status:400});
     }
 
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.signUp({
+    const supabase = createAdminClient();
+    const {data,error}=await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        emailRedirectTo: new URL("/auth/confirmed", request.url).toString(),
-        data: { full_name: fullName, college, course, semester, department, student_id: studentId },
-      },
+      email_confirm:true,
+      user_metadata:{full_name:fullName,college,course,semester,department,student_id:studentId}
     });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if(error){
+      if(error.message.toLowerCase().includes("already registered")){
+        return NextResponse.json({error:"An account with this email already exists. Please sign in instead."},{status:409});
+      }
+      console.error("Supabase signup error:",error);
+      return NextResponse.json({error:error.message||"Unable to create your account."},{status:400});
     }
 
-    if (data.session) {
-      return NextResponse.json({ session: true });
+    if(!data.user){
+      return NextResponse.json({error:"Account creation did not return a user. Please try again."},{status:500});
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Account created. Check your email to confirm the account, then sign in.",
-    });
-  } catch (error) {
-    console.error("Signup error:", error);
-    return NextResponse.json({ error: "Account service is temporarily unavailable. Please try again." }, { status: 500 });
+    return NextResponse.json({success:true,message:"Account created successfully. You can sign in now."});
+  }catch(error){
+    console.error("Signup error:",error);
+    return NextResponse.json({error:"Account service is temporarily unavailable. Please try again."},{status:500});
   }
 }
