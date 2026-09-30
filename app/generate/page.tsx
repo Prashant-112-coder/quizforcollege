@@ -9,10 +9,9 @@ export default function Generate(){
  async function go(){
   setError("");if(!file){setError("Choose a study document first.");return}setLoading(true);
   try{const f=new FormData();f.append("file",file);f.append("count",count);f.append("difficulty",difficulty);f.append("mode",mode);f.append("exam_type","College / General");
-   const backend=(process.env.NEXT_PUBLIC_BACKEND_URL||"https://quizforge-ai-backend-ii0e.onrender.com").replace(/\/$/,"");
-   const res=await fetch(`${backend}/api/generate`,{method:"POST",body:f});
+   const res=await fetch("/api/quiz",{method:"POST",body:f});
    const raw=await res.text();
-   let data:any; try{data=JSON.parse(raw)}catch{data={error:raw||"The AI backend returned an invalid response."}}
+   let data:any; try{data=JSON.parse(raw)}catch{data={error:raw||"The quiz backend returned an invalid response."}}
    if(!res.ok) throw new Error(data?.detail||data?.error||`Generation failed (${res.status})`);
    if(!data?.questions?.length) throw new Error("The AI returned no questions. Please try the document again.");
    data.quizSettings={subject:"General",difficulty,mode,source_filename:file.name};sessionStorage.setItem("quizforge:lastQuiz",JSON.stringify(data));r.push("/quiz");
