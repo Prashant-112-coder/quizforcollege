@@ -8,8 +8,16 @@ import AppShell from "@/components/AppShell";
 
 function ResultView(){
  const search=useSearchParams();const[id]=useState(search.get("id")||"");const[data,setData]=useState<any>(null);const[error,setError]=useState("");
- useEffect(()=>{if(!id)return;fetch("/api/attempts/"+id).then(r=>r.json()).then(x=>x.error?setError(x.error):setData(x.attempt)).catch(()=>setError("Unable to load this result."))},[id]);
- if(error)return <AppShell><div className="page"><div className="card empty"><h2>Result unavailable</h2><p>{error}</p><Link href="/history" className="button">Back to history</Link></div></div></AppShell>;
+ useEffect(()=>{
+  if(!id)return;
+  if(id==="guest"){
+    const saved=sessionStorage.getItem("quizforge:guestAttempt");
+    if(saved){setData(JSON.parse(saved));return}
+    setError("Guest result is no longer available in this browser.");return;
+  }
+  fetch("/api/attempts/"+id).then(r=>r.json()).then(x=>x.error?setError(x.error):setData(x.attempt)).catch(()=>setError("Unable to load this result."))
+},[id]);
+ if(error)return <AppShell><div className="page"><div className="card empty"><h2>Result unavailable</h2><p>{error}</p><Link href="/dashboard" className="button">Back to dashboard</Link></div></div></AppShell>;
  if(!data)return <AppShell><div className="page"><div className="card loading-card"><Loader2 className="spin"/>Loading result…</div></div></AppShell>;
  const quiz=data.quizzes;const percentage=Number(data.percentage||0);
  return <AppShell><div className="page workspace"><Link href="/history" className="text-link"><ArrowLeft size={15}/> Quiz history</Link><section className="result-hero card"><div><div className="eyebrow">QUIZ COMPLETED</div><h1>{quiz?.title||"Quiz result"}</h1><p>{quiz?.subject||"General"} · {quiz?.difficulty||"mixed"}</p></div><div className="result-score"><strong>{data.score}/{quiz?.question_count||0}</strong><span>{percentage}%</span></div></section>
