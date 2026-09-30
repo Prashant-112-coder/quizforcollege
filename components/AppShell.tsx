@@ -23,16 +23,21 @@ const links=[
 ];
 
 export default function AppShell({children}:{children:ReactNode}){
- const pathname=usePathname();const router=useRouter();const[open,setOpen]=useState(false);const[user,setUser]=useState<any>(null);const[profile,setProfile]=useState<any>(null);
+ const pathname=usePathname();const router=useRouter();const[open,setOpen]=useState(false);const[user,setUser]=useState<any>(null);const[profile,setProfile]=useState<any>(null);const[guest,setGuest]=useState(false);
  useEffect(()=>{
    const supabase=createClient();
    supabase.auth.getUser().then(({data})=>setUser(data.user));
+   setGuest(document.cookie.split("; ").some(x=>x==="quizforge_guest=1"));
    fetch("/api/profile").then(r=>r.ok?r.json():null).then(x=>{if(x){setProfile(x.profile||null);document.documentElement.dataset.theme=x.profile?.theme||"system";}}).catch(()=>{});
  },[]);
  const active=(href:string)=>pathname===href||pathname.startsWith(href+"/");
- async function logout(){await createClient().auth.signOut({scope:"local"});router.replace("/");router.refresh();}
+ async function logout(){
+   if(guest){await fetch("/api/auth/guest",{method:"DELETE"});}
+   else await createClient().auth.signOut({scope:"local"});
+   router.replace("/"); router.refresh();
+ }
  const close=()=>setOpen(false);
- const name=profile?.full_name||user?.email?.split("@")[0]||"Student";
+ const name=guest?"Guest":profile?.full_name||user?.email?.split("@")[0]||"Student";
  return <div className="app-shell">
   {open&&<button className="mobile-overlay" aria-label="Close navigation" onClick={close}/>}
   <aside className={open?"sidebar mobile-open":"sidebar"}>
@@ -42,7 +47,8 @@ export default function AppShell({children}:{children:ReactNode}){
     {links.map(({href,label,icon:Icon})=><Link key={href} href={href} onClick={close} className={active(href)?"nav-link active":"nav-link"}><Icon size={17}/><span>{label}</span></Link>)}
    </nav>
    <div className="sidebar-bottom">
-    <div className="ai-card"><Sparkles size={17}/><div><b>AI Study Coach</b><span>Turn your material into focused practice.</span></div></div>
+    {guest&&<div className="ai-card"><Sparkles size={17}/><div><b>Guest mode</b><span>Progress is kept on this browser.</span></div></div>}
+    {!guest&&<div className="ai-card"><Sparkles size={17}/><div><b>AI Study Coach</b><span>Turn your material into focused practice.</span></div></div>}
     <Link className="home-link" href="/" onClick={close}><Home size={16}/> Home</Link>
    </div>
   </aside>
@@ -51,9 +57,9 @@ export default function AppShell({children}:{children:ReactNode}){
     <button className="icon-button menu-button" onClick={()=>setOpen(v=>!v)} aria-label={open?"Close navigation":"Open navigation"}>{open?<X size={18}/>:<Menu size={18}/>}</button>
     <div className="crumb">{pathname==="/dashboard"?"Dashboard":pathname.split("/")[1]?.replaceAll("-"," ")||"QuizForge"}</div>
     <div className="top-actions">
-      <span className="status-dot"/> AI ready
+      <span className="status-dot"/> {guest?"Guest mode":"AI ready"}
       <Link href="/profile" className="user-chip"><span className="avatar">{name.slice(0,1).toUpperCase()}</span><span className="user-chip-name">{name}</span></Link>
-      <button className="icon-button top-logout" onClick={logout} aria-label="Log out" title="Log out"><LogOut size={15}/></button>
+      <button className="icon-button top-logout" onClick={logout} aria-label={guest?"Exit guest mode":"Log out"} title={guest?"Exit guest mode":"Log out"}><LogOut size={15}/></button>
     </div>
    </header>
    <main>{children}</main>
