@@ -4,7 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(){
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
-  if(!user)return NextResponse.json({error:"Unauthorized"},{status:401});
+
+  if(!user){
+    return NextResponse.json({
+      guest:true,
+      profile:{full_name:"Guest Student",course:"Guest Mode",semester:"",college:""},
+      stats:{totalQuizzes:0,quizzesCompleted:0,averageScore:0,bestScore:0,questionsAnswered:0,accuracy:0,currentStreak:0},
+      recentAttempts:[],continueLearning:[],recommendations:[],
+      saved:[],
+      subjects:[],
+    });
+  }
 
   const [profileRes,attemptsRes,quizzesRes,savedRes,subjectsRes]=await Promise.all([
     supabase.from("profiles").select("*").eq("id",user.id).single(),
@@ -37,19 +47,12 @@ export async function GET(){
 
   const dates=[...new Set(attempts.filter(a=>a.completed_at).map(a=>new Date(a.completed_at).toISOString().slice(0,10)))];
   let streak=0;
-  for(let i=0;i<dates.length;i++){
-    if(i===0){streak=1;continue}
-    const diff=(new Date(dates[i-1]).getTime()-new Date(dates[i]).getTime())/86400000;
-    if(Math.round(diff)===1)streak++;else break;
-  }
+  for(let i=0;i<dates.length;i++){if(i===0){streak=1;continue}const diff=(new Date(dates[i-1]).getTime()-new Date(dates[i]).getTime())/86400000;if(Math.round(diff)===1)streak++;else break}
 
   return NextResponse.json({
     profile:profileRes.data,
     stats:{totalQuizzes:quizzes.length,quizzesCompleted:attempts.filter(a=>a.completed_at).length,averageScore:average,bestScore:best,questionsAnswered,accuracy,currentStreak:streak},
-    recentAttempts:attempts.slice(0,8),
-    continueLearning,
-    recommendations,
-    saved:savedRes.data||[],
+    recentAttempts:attempts.slice(0,8),continueLearning,recommendations,saved:savedRes.data||[],
     subjects:(subjectsRes.data||[]).map((s:any)=>({...s,average:performance.find(x=>x.name===s.name)?.average||0})),
   });
 }
