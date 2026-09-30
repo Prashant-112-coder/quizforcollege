@@ -1,5 +1,5 @@
 import io, os, json, re, asyncio
-import fitz
+import pymupdf as fitz
 import httpx
 from docx import Document
 from pptx import Presentation
